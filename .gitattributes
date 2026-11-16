@@ -1,0 +1,6 @@
+# 1. Hide all files from language statistics by default
+* -linguist-detectable
+
+# 2. Re-enable ONLY the specific files to keep
+EDA.py linguist-detectable
+bigquery_query.sql linguist-detectable
