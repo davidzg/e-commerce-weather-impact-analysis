@@ -64,7 +64,7 @@ def joint_weather_test(res):
 
 
 # Load data
-df = pd.read_csv("data_output/olist_weather_data.csv", 
+df = pd.read_csv("data_processed/olist_weather_data.csv", 
                  parse_dates=["purchase_datetime", "posting_datetime", "delivery_datetime"]
                  )
 
@@ -315,5 +315,3 @@ or_table = pd.DataFrame({
 significant = or_table[or_table['p-val'] < 0.05]
 print("Significant predictors:")
 print(significant.round(3).sort_values(by='OR', ascending = False))
-
-

@@ -23,16 +23,16 @@ except:
 
 
 files_to_upload = {
-        'customers': 'data/olist_customers_dataset.csv',
-        'geolocation': 'data/olist_geolocation_dataset.csv',
-        'items': 'data/olist_order_items_dataset.csv',
-        'payments': 'data/olist_order_payments_dataset.csv',
-        'reviews': 'data/olist_order_reviews_dataset.csv',
-        'orders': 'data/olist_orders_dataset.csv',
-        'products': 'data/olist_products_dataset.csv',
-        'sellers': 'data/olist_sellers_dataset.csv',
-        'translation': 'data/product_category_name_translation.csv',
-        'weather': 'data/historical_weather_brazil.parquet'
+        'customers': 'data_raw/olist_customers_dataset.csv',
+        'geolocation': 'data_raw/olist_geolocation_dataset.csv',
+        'items': 'data_raw/olist_order_items_dataset.csv',
+        'payments': 'data_raw/olist_order_payments_dataset.csv',
+        'reviews': 'data_raw/olist_order_reviews_dataset.csv',
+        'orders': 'data_raw/olist_orders_dataset.csv',
+        'products': 'data_raw/olist_products_dataset.csv',
+        'sellers': 'data_raw/olist_sellers_dataset.csv',
+        'translation': 'data_raw/product_category_name_translation.csv',
+        'weather': 'data_raw/historical_weather_brazil.parquet'
     }
 
 
