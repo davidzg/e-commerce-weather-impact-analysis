@@ -6,7 +6,7 @@
 
 [![Tableau Public](https://img.shields.io/badge/Tableau%20Public-Dashboard-blue)](https://public.tableau.com/app/profile/david.zapata3472/viz/weather_impact_on_delivery_delays/Dashboard)
 
-![Dashboard](Images/dashboard.png)
+![Dashboard](Images/Dashboard.png)
 
 ## TL;DR
 
