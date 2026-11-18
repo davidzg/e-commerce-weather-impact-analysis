@@ -2,8 +2,9 @@
 * -linguist-detectable = false
 
 # 2. Re-enable ONLY the specific files to keep
-03_eda_model.py linguist-detectable = true
-# 3. enable sql 
+#   03_eda_model.py linguist-detectable = true
+
+# 3. Enable sql 
 *.sql linguist-detectable=true
 *.sql linguist-language=SQL
 *.sql linguist-vendored=false
