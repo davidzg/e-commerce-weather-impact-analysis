@@ -15,20 +15,16 @@ THE MODEL
             + seller state + purchase weekday + purchase year-month + log(distance) + log(price)
     HOW: 
         - cluster-robust standard errors (deliveries that share a delivery day are not independent)
-        - a joint test of the whole weather block, and partial tests for each variable given the other
-        - each variable's own effect is explained with predicted delay rates, not only with coefficients Reading an 
-            odds ratio (OR) vs the baseline: OR 1.30 = 30% higher ODDS of delay (not 30% higher probability).
-
-REQUIREMENTS  pandas, numpy, matplotlib, scipy, statsmodels; scikit-learn optional (AUC).
-HOW TO RUN    put olist_weather_data.csv next to this file and run it (or run it cell by cell).
-
+        - a joint test of the whole weather block
+        - each variable's own effect is explained with predicted delay rates, not only with coefficients
+        - Reading an odds ratio (OR) vs the baseline: OR 1.30 = 30% higher ODDS of delay (not 30% higher probability).
 NOTES:
     - Weather is measured on the DELIVERY day only, but delay accumulates over the whole journey (seller handling +
         transit). The model can speak to last-mile association, not to the weather over the full transit.
     - Observational data: 'associated with', not 'causes'. Package weight/size, carrier and strikes are not in the data.
     - 'Any delay' mixes 1-day and 30-day slips.
 
-Figures and CSV exports are saved to ./Images    
+Figures are saved to ./Images    
 """
 
 
@@ -37,7 +33,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 import statsmodels.formula.api as smf
 from sklearn.metrics import roc_auc_score
 
@@ -52,7 +47,7 @@ def save_show(fig, name):
 
 def joint_weather_test(res):
     """Wald test of 'ALL weather coefficients are zero', using the covariance the model was fitted with."""
-    names = [n for n in res.params.index if "delivery_weather_category" in n]
+    names = [n for n in res.params.index if "weather_category" in n]
     R = np.zeros((len(names), len(res.params)))
     for i, n in enumerate(names):
         R[i, list(res.params.index).index(n)] = 1.0
@@ -61,23 +56,19 @@ def joint_weather_test(res):
     except TypeError:
         w = res.wald_test(R)
     return float(np.squeeze(w.statistic)), float(np.squeeze(w.pvalue)), len(names)
-
-
 # Load data
 df = pd.read_csv("data_processed/olist_weather_data.csv", 
                  parse_dates=["purchase_datetime", "posting_datetime", "delivery_datetime"]
                  )
-
+df.rename(columns={"delivery_weather_category":"weather_category"}, inplace=True)
 
 #%%
 # Initial EDA
+# Relationship betwen the delayed deliveries and the weather, as well as the impact of delays on the review scores.
 
 print(f"\nDeliveries: {len(df):,} | distinct: {df.order_id.nunique():,} ")
 n_events = int(df.is_delayed.sum())
 print(f"Delayed deliveries: {n_events:,} ({df.is_delayed.mean():.2%})\n") 
-
-# Start by exploring the relationships betwen the delayed deliveries and the weather, as well as 
-# the impact of delays on the review scores.
 
 # Review score vs Days delayed
 df['days_delayed'] = df['days_delayed'].astype(int)
@@ -95,7 +86,7 @@ receive the package on a rainy day, but it is more important that the delivery g
 """)
 
 # Delay rate by weather
-df_weather = df.groupby(by=['delivery_weather_category']).agg(
+df_weather = df.groupby(by=['weather_category']).agg(
     n_deliveries = ('order_id', 'count'),
     raw_delay_rate=('is_delayed', 'mean')
 ).sort_values(by='raw_delay_rate')
@@ -155,7 +146,6 @@ df_2 = df[['is_delayed',
 # spearman correlation
 corr = df_2.corr(method='spearman')
 
-
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 # correlation heatmap
 ax = sns.heatmap(corr, annot=True, fmt='.2f', cmap="Spectral",ax=axes[0])
@@ -163,7 +153,7 @@ ax.set_title("Spearman correlation")
 
 # weather category vs precipitation
 ax = sns.boxplot(data=df,
-            y='delivery_weather_category',
+            y='weather_category',
             x='delivery_precipitation',
             order=['Clear','Cloudy', 'Drizzle', 'Light Rain', 'Moderate Rain', 'Heavy Rain'],
             fliersize=0,
@@ -178,7 +168,7 @@ save_show(fig, "03_collinearity")
 
 print(
 """ 
-- 'delivery_precipitation' is highly correlated with 'delivery_temp_range', and it is aligned with 'delivery_weather_category'.
+- 'delivery_precipitation' is highly correlated with 'delivery_temp_range', and it is aligned with 'weather_category'.
 - 'delivery_temp_min' and 'delivery_temp_max' are highly correlated, indicating a strong relationship with season and location.
 - 'log_freight' is correlated with both 'log_price' and 'distance_seller_customer'. This could be because the freight is calculated based on the distance and price of the item."
 
@@ -192,8 +182,7 @@ fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 # delay rate by state
 df_1 = df.groupby(by=['seller_state_grouped']).agg(
-    delay_rate =('is_delayed','mean'),
-    n_orders = ('order_id','count')
+        delay_rate =('is_delayed','mean'), n_orders = ('order_id','count')
     ).sort_values(by='delay_rate', ascending=False)
 ax = sns.barplot(data=df_1, x="delay_rate", y="seller_state_grouped", ax=axes[0])
 ax.bar_label(ax.containers[0], fmt=lambda x: f'{x * 100:.1f}%', fontsize=10, padding=-32);
@@ -251,7 +240,7 @@ print('Dropped months with few deliveries (less than 100) '
 
 print("\nModel Features" 
 """
-- delivery_weather_category: This is the variable of interest for this project. The baseline is Cloudy instead of Clear, as it has a better representation in the dta set of a clear/Dry day.
+- weather_category: This is the variable of interest for this project. The baseline is Cloudy instead of Clear, as it has a better representation in the dta set of a clear/Dry day.
 - customer_state_grouped: This is a confounder feature, weather and reginal logistics are closely tied to the location. THe baseline is São Paulo (SP) as one of the main states for consumers.
 - seller_state_grouped: This is a control variable, and it accounts for the logistics at different locations.
 - is_same_state: Deliveries inside the same state are faster (shorter distance)
@@ -263,15 +252,15 @@ print("\nModel Features"
 """)
 print("""
 FINAL MODEL  (one explanatory logistic regression, standard errors clustered by delivery date)
-    is_delayed ~ weather category (baseline: Cloudy) + same-state + customer state + seller state
-        + purchase weekday + purchase year-month + log(distance) + log(price)
+    is_delayed ~ weather category (baseline: Cloudy) + same-state + customer state (baseline: SP) + seller state (baseline: SP)
+        + purchase weekday + purchase year-month (baseline: '2017-10') + log(distance) + log(price)
 """)
 
 formula = (
     "is_delayed ~ "
-    "C(delivery_weather_category, Treatment('Cloudy'))"
+    "C(weather_category, Treatment('Cloudy'))"
     " + C(is_same_state)"
-    " + C(customer_state_grouped, Treatment('SP'))" #counfounder
+    " + C(customer_state_grouped, Treatment('SP'))"
     " + C(seller_state_grouped, Treatment('SP'))" 
     " + C(purchase_weekday)"
     " + C(purchase_ym, Treatment('2017-10'))"
@@ -294,40 +283,42 @@ print(f"\nJoint weather significance: p= {p_w:.3f}, chi2= {chi2_w:.2f}, coeffici
 
 #%%
 # Weather Impact
-
-
-
-#%%
-# Adjusted delays
-rates = {}
-for cat in ['Clear', 'Cloudy', 'Drizzle', 'Light Rain', 'Moderate Rain', 'Heavy Rain']:
-    d = df.copy()
-    d['delivery_weather_category'] = cat
-    rates[cat] = logit.predict(d).mean()
-
-df_weather['adjusted_delay_rate'] = df_weather.index.map(rates)
-print("Adjusted Delay rates by weather category:\n", df_weather.round(3))
-
-# %%
-# Results
 # Calculate Odds Ratios and 95% Confidence Intervals
 params = logit.params
 conf = logit.conf_int()
-or_table = pd.DataFrame({
+or_table= pd.DataFrame({
     "OR": np.exp(params),
     "p-val": logit.pvalues,
     "CI L": np.exp(conf[0]),
     "CI U": np.exp(conf[1])
 })
+logit_weather = or_table[or_table.index.str.contains('weather_category')]
+print("Weather category predictors:\n", logit_weather.round(3))
+print("""
+- Three of five categories fall under p= 0.05, but with five tests at p = 0.03–0.04, the joint test (0.087) is the fairer verdict.
+- Heavy Rain is the weakest estimate (about 1,700 deliveries). It is more likely noise, as it is not statistically significant.
+""")
+#%%
+# Adjusted delays
+rates = {}
+for cat in ['Clear', 'Cloudy', 'Drizzle', 'Light Rain', 'Moderate Rain', 'Heavy Rain']:
+    d = df.copy()
+    d['weather_category'] = cat
+    rates[cat] = logit.predict(d).mean()
+
+df_weather['adjusted_delay_rate'] = df_weather.index.map(rates)
+print("Adjusted Delay rates by weather category:\n", df_weather.round(3))
+print("\nRaw rates climb steadily from 3.7% to 9.3%. Adjusted rates are flat at about 6–7%, and every OR is below 1.")
+
+# %%
+# Results
 significant = or_table[or_table['p-val'] < 0.05]
-print("\nSignificant predictors:")
-print(significant.round(3).sort_values(by='OR', ascending = False))
+print("\nSignificant predictors:\n", significant.round(3).sort_values(by='OR', ascending = False))
 
 print("""
 Predictors that drive delays, relative to its baseline:
 - Customer in AL (OR 5.2), Deliveries to Alagoas are the most likely to be delayed.
 - Customer in MA (OR 3.7), Maranhão is the second-worst destination. Maranhão is the second-worst destination.
-- Customer in RJ (OR 2.4), A smaller effect, but RJ has about 11,000 deliveries.
 - Seller in MA (OR 3.0), Orders shipped from Maranhão sellers are late far more often
 - Purchased Mar 2018 (OR 6.1) and Purchased Feb 2018 (OR 4.1) are the strongest single driver. It points to a system-wide bottleneck (capacity, carrier or carnival holiday disruption), but the data can’t say which.
 - Purchased Nov 2017 (OR 3.5) The Black Friday period. Demand spikes are a likely cause.
