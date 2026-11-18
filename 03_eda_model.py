@@ -47,6 +47,7 @@ def save_show(fig, name):
     fig.tight_layout()
     fig.savefig('Images/'f"{name}.png", dpi=130, bbox_inches="tight")
     plt.show()
+    print(f"[{name}.png]")
     plt.close(fig)
 
 def joint_weather_test(res):
@@ -73,7 +74,7 @@ df = pd.read_csv("data_processed/olist_weather_data.csv",
 
 print(f"\nDeliveries: {len(df):,} | distinct: {df.order_id.nunique():,} ")
 n_events = int(df.is_delayed.sum())
-print(f"Delayed deliveries: {n_events:,} ({df.is_delayed.mean():.2%})") 
+print(f"Delayed deliveries: {n_events:,} ({df.is_delayed.mean():.2%})\n") 
 
 # Start by exploring the relationships betwen the delayed deliveries and the weather, as well as 
 # the impact of delays on the review scores.
@@ -96,20 +97,18 @@ receive the package on a rainy day, but it is more important that the delivery g
 # Delay rate by weather
 df_weather = df.groupby(by=['delivery_weather_category']).agg(
     n_deliveries = ('order_id', 'count'),
-    delay_rate=('is_delayed', 'mean')
-).sort_values(by='delay_rate')
-print(df_weather.round(3))
+    raw_delay_rate=('is_delayed', 'mean')
+).sort_values(by='raw_delay_rate')
+print("Raw delay rate per weather category:\n", df_weather.round(3))
 print("""
-An initial table of the weather impact shows that Rain conditions are directly proportional 
-with the delivery delay rates, but this is not taking into account other factors like weather 
-being highly correlated to the geolocation and season of the year. 
-There are also other factors that could generate delays like the distance between the seller 
-and the customer, parcel size, price of the goods in the order.
+An initial table of the weather impact shows that Rain conditions are directly proportional with the delivery delay rates, 
+but this is not taking into account other factors like weather being highly correlated to the geolocation and season of the year. 
+There are also other factors that could generate delays like the distance between the seller and the customer, parcel size,
+price of the goods in the order.
 """)
 
-print("""Given that delays are closely associated with customer satisfaction, I decided to use an 
-exploratory logistics model to explain the fcators that are associated with delays.
-The taget outcome is 'is_delayed'
+print("""Given that delays are closely associated with customer satisfaction, I decided to use an exploratory logistics model
+ to explain the fcators that are associated with delays. The taget outcome is 'is_delayed.'
 """)
 # %%
 # Skewness
@@ -291,7 +290,7 @@ auc = roc_auc_score(df.is_delayed, logit.predict(df))
 print(f"AUC= {auc:.3f}")
 
 chi2_w, p_w, n_w = joint_weather_test(logit)
-print(f"\nWhole weather significance: p= {p_w:.3f}, chi2= {chi2_w:.2f}, coefficients= {n_w}")
+print(f"\nJoint weather significance: p= {p_w:.3f}, chi2= {chi2_w:.2f}, coefficients= {n_w}\n")
 
 #%%
 # Weather Impact
@@ -306,8 +305,8 @@ for cat in ['Clear', 'Cloudy', 'Drizzle', 'Light Rain', 'Moderate Rain', 'Heavy 
     d['delivery_weather_category'] = cat
     rates[cat] = logit.predict(d).mean()
 
-df_weather['adjusted_delays'] = df_weather.index.map(rates)
-print(df_weather.round(3))
+df_weather['adjusted_delay_rate'] = df_weather.index.map(rates)
+print("Adjusted Delay rates by weather category:\n", df_weather.round(3))
 
 # %%
 # Results
@@ -326,14 +325,13 @@ print(significant.round(3).sort_values(by='OR', ascending = False))
 
 print("""
 Predictors that drive delays, relative to its baseline:
-- Customer in AL (OR 5.2) Deliveries to Alagoas are the most likely to be delayed.
-- Customer in MA (OR 3.7) Maranhão is the second-worst destination. Maranhão is the second-worst destination.
-- Customer in RJ (OR 2.4) A smaller effect, but RJ has about 11,000 deliveries.
-- Seller in MA (OR 3.0) Orders shipped from Maranhão sellers are late far more often
-- Purchased Mar 2018 (OR 6.1) and Purchased Feb 2018 (OR 4.1) are the strongest single driver.
-    It points to a system-wide bottleneck (capacity, carrier or carnival holiday disruption), but the data can’t say which.
+- Customer in AL (OR 5.2), Deliveries to Alagoas are the most likely to be delayed.
+- Customer in MA (OR 3.7), Maranhão is the second-worst destination. Maranhão is the second-worst destination.
+- Customer in RJ (OR 2.4), A smaller effect, but RJ has about 11,000 deliveries.
+- Seller in MA (OR 3.0), Orders shipped from Maranhão sellers are late far more often
+- Purchased Mar 2018 (OR 6.1) and Purchased Feb 2018 (OR 4.1) are the strongest single driver. It points to a system-wide bottleneck (capacity, carrier or carnival holiday disruption), but the data can’t say which.
 - Purchased Nov 2017 (OR 3.5) The Black Friday period. Demand spikes are a likely cause.
-- Price: about +8.6% odds per doubling. Higher-value orders may involve bulkier items or more handling, but package size isn’t in the data, so this is a guess.
-- Same-state delivery (OR 0.78) Deliveries within the same state are about 22% less likely to be late.
-- Monday purchases: +27% odds vs Sunday. A possible explanation is the dispatch cutoff and weekend handling. 
+- Each doubling of the order price is associated with about 8.6% higher odds of a late delivery, holding the other factors constant. Higher-value orders may involve bulkier items or more handling.
+- Same-state delivery (OR 0.78), Deliveries within the same state are about 22% less likely to be late.
+- Monday purchases have +27% odds vs Sunday. A possible explanation is the dispatch cutoff and weekend handling. 
 """)
