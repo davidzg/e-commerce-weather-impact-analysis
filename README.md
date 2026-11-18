@@ -97,8 +97,8 @@ Joint test of the weather block: chi2 = 9.63, df = 5, **p = 0.087**. Model fit: 
 
 - Delay accumulates over the whole journey (seller handling plus transit), so this speaks to last-mile association, not weather along the full route.
 - Results show association, not causation. Parcel weight and size, carrier and strikes are not in the data.
-- **The delivery date depends on the outcome.** Late orders are delivered on later calendar dates. A cleaner design would use weather on the *estimated* delivery date.
-- **"Any delay" mixes 1-day and 30-day slips.**
+- The delivery date depends on the outcome. Late orders are delivered on later calendar dates. A cleaner design would use weather on the *estimated* delivery date.
+- "Any delay" mixes 1-day and 30-day slips.
 
 ## Repository structure
 
@@ -112,7 +112,6 @@ Joint test of the weather block: chi2 = 9.63, df = 5, **p = 0.087**. Model fit: 
 ├── 02_run_query.py               # builds olist_weather_data.csv
 ├── 03_eda_model.py               # EDA + logistic regression (run cell by cell or as a script)
 ├── bigquery_query.sql            # BigQuery queries that build the dataset
-├── olist_weather_data.csv        # query output
 ├── data_raw/                     # Kaggle / Open-Meteo downloads (gitignored)
 ├── data_processed/
 │   └── olist_weather_data.csv    # query output used by Tableau and the model
