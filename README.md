@@ -2,9 +2,8 @@
 
 **An explanatory analysis of ~92,000 Olist e-commerce deliveries in Brazil, combining BigQuery SQL, Python (logistic regression) and a Tableau dashboard.**
 
-[![Executive Summary](https://img.shields.io/badge/Read-Executive%20Summary-green)](Executive_Summary.md)
-
 [![Tableau Public](https://img.shields.io/badge/Tableau%20Public-Dashboard-blue)](https://public.tableau.com/app/profile/david.zapata3472/viz/weather_impact_on_delivery_delays/Dashboard)
+[![Executive Summary](https://img.shields.io/badge/Read-Executive%20Summary-green)](Executive_Summary.md)
 
 ![Dashboard](Images/Dashboard.png)
 
