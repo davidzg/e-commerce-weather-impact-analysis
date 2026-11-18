@@ -41,13 +41,12 @@ import seaborn as sns
 import statsmodels.formula.api as smf
 from sklearn.metrics import roc_auc_score
 
-SHOW_FIGS=True
+sns.set_theme('paper')
 
 def save_show(fig, name):
     fig.tight_layout()
     fig.savefig('Images/'f"{name}.png", dpi=130, bbox_inches="tight")
-    if SHOW_FIGS:
-        plt.show()
+    plt.show()
     plt.close(fig)
 
 def joint_weather_test(res):
@@ -68,7 +67,6 @@ df = pd.read_csv("data_processed/olist_weather_data.csv",
                  parse_dates=["purchase_datetime", "posting_datetime", "delivery_datetime"]
                  )
 
-#df.dropna(inplace=True)
 
 #%%
 # Initial EDA
@@ -87,7 +85,6 @@ df_1= df.groupby(['days_delayed']).agg(review_score=('review_score', 'mean'))#.r
 fig = plt.figure(figsize=(10, 5))
 ax = sns.scatterplot(data=df_1,y='review_score',x = 'days_delayed')
 ax.set(title="Review Scores vs. Days Delayed", ylabel="Review Score")
-#fig = ax.figure()
 save_show(fig, "01_user_satisfaction")
 
 print("""
@@ -97,11 +94,11 @@ receive the package on a rainy day, but it is more important that the delivery g
 """)
 
 # Delay rate by weather
-df_1 = df.groupby(by=['delivery_weather_category']).agg(
+df_weather = df.groupby(by=['delivery_weather_category']).agg(
     n_deliveries = ('order_id', 'count'),
     delay_rate=('is_delayed', 'mean')
 ).sort_values(by='delay_rate')
-print(df_1.round(3))
+print(df_weather.round(3))
 print("""
 An initial table of the weather impact shows that Rain conditions are directly proportional 
 with the delivery delay rates, but this is not taking into account other factors like weather 
@@ -219,6 +216,7 @@ ax=sns.scatterplot(data=df_1, y="delay_rate", x="temp_min",
 ax.yaxis.set_major_formatter('{x:.1%}')
 ax.set_title("Customer State: Minimum Temperature vs. Delay Rate")
 
+# adjust the position of dots that are too close
 for state, row in df_1.iterrows():
     x_f = row['temp_min']
     y_f = row['delay_rate']
@@ -227,8 +225,8 @@ for state, row in df_1.iterrows():
     elif state=='PI':
         y_f += 0.003
     ax.text(x=x_f, y=y_f, s=str(state), fontsize=11,
-        ha='center',      # Horizontal alignment ('left', 'right', 'center')
-        va='center',    # Vertical alignment ('top', 'bottom', 'center')
+        ha='center',
+        va='center',
     )
 save_show(fig, "04_confounder")
 #control for purchase year-month, customer state, seller state, same-state and weekday.
@@ -293,11 +291,23 @@ auc = roc_auc_score(df.is_delayed, logit.predict(df))
 print(f"AUC= {auc:.3f}")
 
 chi2_w, p_w, n_w = joint_weather_test(logit)
-print("\nWhole weather significance:")
-print(f"p= {p_w:.3f}, chi2= {chi2_w:.2f}, coefficients= {n_w}")
+print(f"\nWhole weather significance: p= {p_w:.3f}, chi2= {chi2_w:.2f}, coefficients= {n_w}")
+
+#%%
+# Weather Impact
 
 
 
+#%%
+# Adjusted delays
+rates = {}
+for cat in ['Clear', 'Cloudy', 'Drizzle', 'Light Rain', 'Moderate Rain', 'Heavy Rain']:
+    d = df.copy()
+    d['delivery_weather_category'] = cat
+    rates[cat] = logit.predict(d).mean()
+
+df_weather['adjusted_delays'] = df_weather.index.map(rates)
+print(df_weather.round(3))
 
 # %%
 # Results
@@ -305,13 +315,25 @@ print(f"p= {p_w:.3f}, chi2= {chi2_w:.2f}, coefficients= {n_w}")
 params = logit.params
 conf = logit.conf_int()
 or_table = pd.DataFrame({
-    "coef.": params,
     "OR": np.exp(params),
     "p-val": logit.pvalues,
     "CI L": np.exp(conf[0]),
     "CI U": np.exp(conf[1])
-
 })
 significant = or_table[or_table['p-val'] < 0.05]
-print("Significant predictors:")
+print("\nSignificant predictors:")
 print(significant.round(3).sort_values(by='OR', ascending = False))
+
+print("""
+Predictors that drive delays, relative to its baseline:
+- Customer in AL (OR 5.2) Deliveries to Alagoas are the most likely to be delayed.
+- Customer in MA (OR 3.7) Maranhão is the second-worst destination. Maranhão is the second-worst destination.
+- Customer in RJ (OR 2.4) A smaller effect, but RJ has about 11,000 deliveries.
+- Seller in MA (OR 3.0) Orders shipped from Maranhão sellers are late far more often
+- Purchased Mar 2018 (OR 6.1) and Purchased Feb 2018 (OR 4.1) are the strongest single driver.
+    It points to a system-wide bottleneck (capacity, carrier or carnival holiday disruption), but the data can’t say which.
+- Purchased Nov 2017 (OR 3.5) The Black Friday period. Demand spikes are a likely cause.
+- Price: about +8.6% odds per doubling. Higher-value orders may involve bulkier items or more handling, but package size isn’t in the data, so this is a guess.
+- Same-state delivery (OR 0.78) Deliveries within the same state are about 22% less likely to be late.
+- Monday purchases: +27% odds vs Sunday. A possible explanation is the dispatch cutoff and weekend handling. 
+""")
